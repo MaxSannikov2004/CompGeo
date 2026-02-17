@@ -1,0 +1,72 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Оценивание: 6/6 за код (по 1 баллу за каждую функцию).
+      # Job будет "зелёным" только при 6/6.
+      - name: Run tests with scoring (6 points for code)
+        run: |
+          set +e
+          score=0
+
+          run_group () {
+            title="$1"
+            kexpr="$2"
+            echo ""
+            echo "===================="
+            echo "$title"
+            echo "pytest -k "$kexpr""
+            echo "===================="
+            pytest -q -k "$kexpr"
+            status=$?
+            if [ $status -eq 0 ]; then
+              score=$((score+1))
+              echo "$title: PASS (+1)"
+            else
+              echo "$title: FAIL (+0)"
+            fi
+            return 0
+          }
+
+          run_group "1/6 orient"              "test_orient_"
+          run_group "2/6 dist_point_line"     "test_dist_point_line_"
+          run_group "3/6 on_segment"          "test_on_segment_"
+          run_group "4/6 segments_intersect"  "test_segments_intersect_"
+          run_group "5/6 polygon_area"        "test_polygon_area_"
+          run_group "6/6 point_in_polygon"    "test_point_in_polygon_"
+
+          echo ""
+          echo "TOTAL SCORE: ${score}/6"
+          {
+            echo "## Autograder score"
+            echo ""
+            echo "**Code:** ${score}/6"
+            echo ""
+            echo "Total in course rubric: 8 points, where code = 6 points."
+            echo ""
+            echo "Breakdown (1 point each): orient, dist_point_line, on_segment, segments_intersect, polygon_area, point_in_polygon."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ $score -eq 6 ]; then
+            exit 0
+          else
+            exit 1
+          fi
